@@ -1,1 +1,2 @@
-
+[submodule "libraries/TinyGPSPlus/"]
+	url = https://github.com/GitMasterNikanjam/TinyGPSPlus_OS.git
