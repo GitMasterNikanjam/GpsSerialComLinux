@@ -1,5 +1,5 @@
-#ifndef RASP_GPS_UART_H
-#define RASP_GPS_UART_H
+#ifndef GPS_UART_H
+#define GPS_UART_H
 
 // ######################################################################
 // Information:
@@ -26,7 +26,7 @@
 #include <fcntl.h>                                  // For file system management
 #include <termios.h>                                // Use for UART communication
 #include <fstream>                                  // For file system management
-#include "../TinyGPSOS/TinyGPS++.h"                 // For GPS data parsing.
+#include "../TinyGPSPlus/TinyGPSPlus.h"                 // For GPS data parsing.
 #include <sys/ioctl.h>                              // Required for ioctl() function -> for get method  avilable char in uart recieved.
 #include <unistd.h>                                 // it provides access to many system-level functions and constants necessary for various tasks like process management, file I/O, and system interaction.
 #include <pigpio.h>                                 // For GPIO configuration            
