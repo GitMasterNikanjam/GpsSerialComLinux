@@ -1,0 +1,3 @@
+[submodule "libraries/TinyGPSPlus"]
+	path = libraries/TinyGPSPlus
+	url = https://github.com/GitMasterNikanjam/GpsUart_RaspberryPi.git
