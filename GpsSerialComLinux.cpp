@@ -1,4 +1,4 @@
-#include "GpsUart.h"
+#include "GpsSerialComLinux.h"
 
 // ####################################################################
 
@@ -314,9 +314,11 @@ void RaspGPS_UART::detachPPS(void)
 {
     if(_ppsPin >= 0)
     {
-        gpioSetMode(_ppsPin, PI_INPUT);
-        gpioSetPullUpDown(_ppsPin, PI_PUD_OFF);
-        gpioSetISRFunc(_ppsPin, RISING_EDGE,0, nullptr);           // Free interrupt handler for GPS PPS pin.
+        #if(GPIO_TYPE == 1)
+            gpioSetMode(_ppsPin, PI_INPUT);
+            gpioSetPullUpDown(_ppsPin, PI_PUD_OFF);
+            gpioSetISRFunc(_ppsPin, RISING_EDGE,0, nullptr);           // Free interrupt handler for GPS PPS pin.
+        #endif
     }
 
     _ppsPin = -1;
@@ -327,9 +329,12 @@ void RaspGPS_UART::detachPPS(void)
 void RaspGPS_UART::attachPPS(uint8_t pin)
 {
     _ppsPin = pin;
-    gpioSetMode(_ppsPin, PI_INPUT);
-    gpioSetPullUpDown(_ppsPin, PI_PUD_DOWN);
-    gpioSetISRFunc(_ppsPin, RISING_EDGE,0, _InterruptHandler);  // Set up interrupt handler for GPS PPS pin.
+
+    #if(GPIO_TYPE == 1)
+        gpioSetMode(_ppsPin, PI_INPUT);
+        gpioSetPullUpDown(_ppsPin, PI_PUD_DOWN);
+        gpioSetISRFunc(_ppsPin, RISING_EDGE,0, _InterruptHandler);  // Set up interrupt handler for GPS PPS pin.
+    #endif
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

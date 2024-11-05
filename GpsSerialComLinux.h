@@ -1,5 +1,12 @@
-#ifndef GPS_UART_H
-#define GPS_UART_H
+#ifndef GPS_SERIAL_COM_LINUX_H
+#define GPS_SERIAL_COM_LINUX_H
+
+/**
+ * @brief Define for GPIO type selection.  
+ * 0: General PC systems
+ * 1: Raspberry pi boards
+ */
+#define GPIO_TYPE   0
 
 // ######################################################################
 // Information:
@@ -28,11 +35,18 @@
 #include <fstream>                                  // For file system management
 #include "../TinyGPSPlus_OS/TinyGPSPlus.h"                 // For GPS data parsing.
 #include <sys/ioctl.h>                              // Required for ioctl() function -> for get method  avilable char in uart recieved.
-#include <unistd.h>                                 // it provides access to many system-level functions and constants necessary for various tasks like process management, file I/O, and system interaction.
-#include <pigpio.h>                                 // For GPIO configuration            
+#include <unistd.h>                                 // it provides access to many system-level functions and constants necessary for various tasks like process management, file I/O, and system interaction.  
 #include <chrono>                                   // For time management
 #include <thread>
 #include <mutex>
+
+#if(GPIO_TYPE == 1)
+    #include <pigpio.h>                                 // For GPIO configuration    
+#endif 
+
+#if(GPIO_TYPE == 0)
+    #include <gpiod.h>
+#endif
 
 // ###############################################################
 
