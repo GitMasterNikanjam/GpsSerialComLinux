@@ -6,7 +6,7 @@
  * 0: General PC systems
  * 1: Raspberry pi boards
  */
-#define GPIO_TYPE   0
+#define GPIO_TYPE   1
 
 // ######################################################################
 // Information:
@@ -33,7 +33,7 @@
 #include <fcntl.h>                                  // For file system management
 #include <termios.h>                                // Use for UART communication
 #include <fstream>                                  // For file system management
-#include "../TinyGPSPlus_OS/TinyGPSPlus.h"                 // For GPS data parsing.
+#include "./libraries/TinyGPSPlus_OS/TinyGPSPlus.h"                 // For GPS data parsing.
 #include <sys/ioctl.h>                              // Required for ioctl() function -> for get method  avilable char in uart recieved.
 #include <unistd.h>                                 // it provides access to many system-level functions and constants necessary for various tasks like process management, file I/O, and system interaction.  
 #include <chrono>                                   // For time management
