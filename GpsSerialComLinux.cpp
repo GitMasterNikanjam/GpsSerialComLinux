@@ -3,21 +3,21 @@
 // ####################################################################
 
 // Define the static member variable: data
-GPS_DATA RaspGPS_UART::data;
-std::chrono::time_point<std::chrono::system_clock> RaspGPS_UART::_T_origin;
-std::string RaspGPS_UART::errorMessage;
-TinyGPSPlus RaspGPS_UART::_GPS;
-double RaspGPS_UART::_utcTimeRef[6];
-int RaspGPS_UART::_serialPort = -1; // Default initialization
-char* RaspGPS_UART::_gpsStream = nullptr;
-int8_t RaspGPS_UART::_ppsPin = -1;
-uint32_t RaspGPS_UART::_baudRate = 115200;
-std::thread RaspGPS_UART::_thread;
-bool RaspGPS_UART::stopThreadFlag = false;
+GPS_DATA GpsSerialComLinux::data;
+std::chrono::time_point<std::chrono::system_clock> GpsSerialComLinux::_T_origin;
+std::string GpsSerialComLinux::errorMessage;
+TinyGPSPlus GpsSerialComLinux::_GPS;
+double GpsSerialComLinux::_utcTimeRef[6];
+int GpsSerialComLinux::_serialPort = -1; // Default initialization
+char* GpsSerialComLinux::_gpsStream = nullptr;
+int8_t GpsSerialComLinux::_ppsPin = -1;
+uint32_t GpsSerialComLinux::_baudRate = 115200;
+std::thread GpsSerialComLinux::_thread;
+bool GpsSerialComLinux::stopThreadFlag = false;
 
 // ########################################################################
 
-bool RaspGPS_UART::_uartSetup(void)
+bool GpsSerialComLinux::_uartSetup(void)
 {
     // Open UART device file in read-write mode, prevent it from becoming the controlling terminal, and set non-blocking mode
     _serialPort = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -61,7 +61,7 @@ bool RaspGPS_UART::_uartSetup(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::_parse(void)
+void GpsSerialComLinux::_parse(void)
 {
     // Open serialport for uart in non blocking mode.
     _serialPort = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -149,7 +149,7 @@ void RaspGPS_UART::_parse(void)
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::_setUtcReference(void)
+void GpsSerialComLinux::_setUtcReference(void)
 {  
     // Save GPS data and time to UTC_time_reference. 
     _utcTimeRef[0] = _GPS.date.year();
@@ -162,7 +162,7 @@ void RaspGPS_UART::_setUtcReference(void)
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::_calcUtcTime(void)
+void GpsSerialComLinux::_calcUtcTime(void)
 {
     uint64_t T = _micros();            // current time. [us]
     uint64_t dT = T - data.T_pps;      // Deference between current time and last time in PPS interrupt. [us]
@@ -207,7 +207,7 @@ void RaspGPS_UART::_calcUtcTime(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::_InterruptHandler(int /*gpio*/, int /*level*/, uint32_t /*tick*/) 
+void GpsSerialComLinux::_InterruptHandler(int /*gpio*/, int /*level*/, uint32_t /*tick*/) 
 {
     uint64_t t = _micros();
     uint64_t dT = t - data.T_pps;
@@ -222,7 +222,7 @@ void RaspGPS_UART::_InterruptHandler(int /*gpio*/, int /*level*/, uint32_t /*tic
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-bool RaspGPS_UART::begin(void)
+bool GpsSerialComLinux::begin(void)
 {
     // Save time point for time origin.
     _T_origin = std::chrono::high_resolution_clock::now();
@@ -242,7 +242,7 @@ bool RaspGPS_UART::begin(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-bool RaspGPS_UART::startThread(void)
+bool GpsSerialComLinux::startThread(void)
 {
     // Create a thread to read temperature
     _thread = std::thread(_updateThread);
@@ -252,7 +252,7 @@ bool RaspGPS_UART::startThread(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-bool RaspGPS_UART::stopThread(void)
+bool GpsSerialComLinux::stopThread(void)
 {
     stopThreadFlag = true;
     if (_thread.joinable())
@@ -265,7 +265,7 @@ bool RaspGPS_UART::stopThread(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-uint64_t RaspGPS_UART::_micros(void)
+uint64_t GpsSerialComLinux::_micros(void)
 {
     std::chrono::time_point<std::chrono::system_clock> T_point;
     // Get Current time point
@@ -278,7 +278,7 @@ uint64_t RaspGPS_UART::_micros(void)
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::clean(void)
+void GpsSerialComLinux::clean(void)
 {
     stopThreadFlag = true;
     if (_thread.joinable())
@@ -292,7 +292,7 @@ void RaspGPS_UART::clean(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::update(void)
+void GpsSerialComLinux::update(void)
 {
     _parse();
     _calcUtcTime();
@@ -300,7 +300,7 @@ void RaspGPS_UART::update(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::_updateThread(void)
+void GpsSerialComLinux::_updateThread(void)
 {
     while(!stopThreadFlag)
     {
@@ -310,7 +310,7 @@ void RaspGPS_UART::_updateThread(void)
 }
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::detachPPS(void)
+void GpsSerialComLinux::detachPPS(void)
 {
     if(_ppsPin >= 0)
     {
@@ -326,7 +326,7 @@ void RaspGPS_UART::detachPPS(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::attachPPS(uint8_t pin)
+void GpsSerialComLinux::attachPPS(uint8_t pin)
 {
     _ppsPin = pin;
 
@@ -339,14 +339,14 @@ void RaspGPS_UART::attachPPS(uint8_t pin)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void RaspGPS_UART::setPPSpin(uint8_t pin)
+void GpsSerialComLinux::setPPSpin(uint8_t pin)
 {
     _ppsPin = pin;
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-bool RaspGPS_UART::setBaudrate(uint32_t rate)
+bool GpsSerialComLinux::setBaudrate(uint32_t rate)
 {
     if( (rate == 9600) || (rate == 115200) )
     {

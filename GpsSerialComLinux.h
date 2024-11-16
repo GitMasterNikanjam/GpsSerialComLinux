@@ -55,7 +55,7 @@ struct GPS_DATA
 {
     volatile uint64_t ppsCount;         // Auxilliary variable for GPS pulse per second counter. 
     float lat;                          // GPS Latitude. [deg] (-90, 90)
-    float lon;                          // GPS Longitude. [deg] (0, 360)
+    float lon;                          // GPS Longitude. [deg] (-360, 360)
     float alt;                          // GPS Altitude from seal level. [m]
     float course;                       // GPS motion course line relative to north.
     float speed;                        // GPS speed magnitude.
@@ -66,15 +66,17 @@ struct GPS_DATA
     volatile uint64_t T_pps;            // Auxilliary variable for time at GPS PPS interrupt events. [us]
 };
 
-// RaspGPS_UART object
-class RaspGPS_UART
+/**
+ * @class GpsSerialComLinux
+ *  */  
+class GpsSerialComLinux
 {
     public:
 
-        // GPS data structure.
+        /// @brief GPS data structure.
         static GPS_DATA data;           
 
-        // Store last error accured for object.
+        /// @brief Last error occurred for the object.
         static std::string errorMessage;       
 
         // Init and setup without thread configuration. setup uart port.
