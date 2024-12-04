@@ -26,7 +26,7 @@
         11- GPS data update method can be use optionally by seperate thread or just use it manually without seperated thread.
 */
 
-// #############################################################
+// ##############################################################
 // Include libraries:
 
 #include <iostream>
