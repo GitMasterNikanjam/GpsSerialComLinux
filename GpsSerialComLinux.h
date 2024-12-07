@@ -6,7 +6,7 @@
  * 0: General PC systems
  * 1: Raspberry pi boards
  */
-#define GPIO_TYPE   1
+#define GPIO_TYPE   0
 
 // ######################################################################
 // Information:
