@@ -14,13 +14,15 @@ int8_t GpsSerialComLinux::_ppsPin = -1;
 uint32_t GpsSerialComLinux::_baudRate = 115200;
 std::thread GpsSerialComLinux::_thread;
 bool GpsSerialComLinux::stopThreadFlag = false;
+std::string GpsSerialComLinux::_portAddress = "/dev/ttyS0";
 
 // ########################################################################
 
 bool GpsSerialComLinux::_uartSetup(void)
 {
     // Open UART device file in read-write mode, prevent it from becoming the controlling terminal, and set non-blocking mode
-    _serialPort = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NONBLOCK);
+    _serialPort = open(_portAddress.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+
     if (_serialPort == -1) 
     {
         errorMessage = "Error opening UART device file.";
@@ -29,8 +31,14 @@ bool GpsSerialComLinux::_uartSetup(void)
 
     // Configure UART settings
     struct termios uart_config;
-    tcgetattr(_serialPort, &uart_config);
-    
+
+    if (tcgetattr(_serialPort, &uart_config) != 0) 
+    {
+        errorMessage = "Error getting UART attributes: ";
+        close(_serialPort);
+        return false;
+    }
+
     uint baudRate;
     switch (_baudRate)
     {
@@ -45,7 +53,7 @@ bool GpsSerialComLinux::_uartSetup(void)
         break;
     }
 
-    cfsetispeed(&uart_config, baudRate); // Set baud rate to 115200
+    cfsetispeed(&uart_config, baudRate); // Set baud rate 
     cfsetospeed(&uart_config, baudRate);
     uart_config.c_cflag &= ~PARENB; // No parity
     uart_config.c_cflag &= ~CSTOPB; // 1 stop bit
@@ -64,11 +72,28 @@ bool GpsSerialComLinux::_uartSetup(void)
 void GpsSerialComLinux::_parse(void)
 {
     // Open serialport for uart in non blocking mode.
-    _serialPort = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NONBLOCK);
+    // _serialPort = open(_portAddress.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+    _serialPort = open(_portAddress.c_str(), O_RDWR | O_NOCTTY);
+
+    if (_serialPort < 0) 
+    {
+        errorMessage = "Error opening serial port: ";
+        return;
+    }
 
     // Check number of characters available in UART receive buffer
     int uart_available_chars;
-    ioctl(_serialPort, FIONREAD, &uart_available_chars);
+
+    // ioctl(_serialPort, FIONREAD, &uart_available_chars);
+    
+    if (ioctl(_serialPort, FIONREAD, &uart_available_chars) < 0) {
+        errorMessage = "Error with ioctl to check available bytes: ";
+        close(_serialPort);
+        return;
+    }
+
+    std::cout << "Bytes available for read: " << uart_available_chars << std::endl;
+
     if (uart_available_chars > 0) 
     {
         char uart_read_buffer[uart_available_chars];
@@ -359,4 +384,9 @@ bool GpsSerialComLinux::setBaudrate(uint32_t rate)
     }
     
     return true;
+}
+
+void GpsSerialComLinux::setPortAddress(std::string address)
+{
+    _portAddress = address;
 }

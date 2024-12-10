@@ -1,4 +1,4 @@
-// For compile and build: g++ -o ex1 ex1.cpp ../RaspGPS_UART.cpp ../../TinyGPS++/TinyGPS++.cpp -lpigpio -lpthread -Wall -Wextra -std=c++17
+// For compile and build: g++ -o ex1 ex1.cpp ../GpsSerialComLinux.cpp ../../TinyGPSPlus_OS/TinyGPSPlus.cpp -lpigpio -lpthread -Wall -Wextra -std=c++17
 // For run: sudo ./ex1
 
 // This example show use RaspGPS_UART without multithread strategy.
@@ -8,7 +8,8 @@
 
 #include <iostream>
 #include <chrono>
-#include "../RaspGPS_UART.h"
+#include <thread>
+#include "../GpsSerialComLinux.h"
 
 using namespace std;
 
@@ -16,13 +17,13 @@ using namespace std;
 // Define parameters:
 
 #define GPS_PPS_PIN             18          // GPIO 18, DOWN, PCM_CLK, SD10, DPI_D14, SPI6_CE0_N, SPI1_CE0_N, PWM0_0
-#define BAUDRATE                115200      // UART baudrate for GPS communication
+#define BAUDRATE                9600        // UART baudrate for GPS communication
 
 // #######################################################
 // Define global variables and objects:
 
 // GPS object 
-RaspGPS_UART gps;
+GpsSerialComLinux gps;
 
 // for time storing.
 uint64_t t1,t2;         
@@ -47,14 +48,17 @@ int main(void)
     // Save time point at object constructor.
     T_origin = chrono::high_resolution_clock::now();
 
-    // Initial pigpio library.
-    if (gpioInitialise() < 0) 
-    {
-        printf("pigpio initialization failed");
-        return false;
-    }
+    #if(GPIO_TYPE == 1)
+        // Initial pigpio library.
+        if (gpioInitialise() < 0) 
+        {
+            printf("pigpio initialization failed");
+            return false;
+        }
+        gps.setPPSpin(GPS_PPS_PIN);
+    #endif
 
-    gps.setPPSpin(GPS_PPS_PIN);
+    gps.setPortAddress("/dev/ttyS0");
     gps.setBaudrate(BAUDRATE);
 
     if(gps.begin())
@@ -71,8 +75,10 @@ int main(void)
     // Close all resources of gps object.
     gps.clean();
 
-    // Cleanup before exiting. This function is built in pigpio library
-    gpioTerminate(); 
+    #if(GPIO_TYPE == 1)
+        // Cleanup before exiting. This function is built in pigpio library
+        gpioTerminate(); 
+    #endif
 
     return 0;
 }
@@ -118,7 +124,10 @@ void loop(void)
         printf("duration: "); 
         std::cout << t2-t1 <<std::endl << std::endl;
 
-        gpioDelay(1000);
+      
+        // Wait for 1000 milliseconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+ 
     }
 }
 

@@ -1,9 +1,10 @@
-#ifndef GPS_SERIAL_COM_LINUX_H
-#define GPS_SERIAL_COM_LINUX_H
+#pragma once
 
 /**
  * @brief Define for GPIO type selection.  
+ * 
  * 0: General PC systems
+ * 
  * 1: Raspberry pi boards
  */
 #define GPIO_TYPE   0
@@ -12,13 +13,13 @@
 // Include libraries:
 
 #include <iostream>
-#include <fcntl.h>                                  // For file system management
-#include <termios.h>                                // Use for UART communication
-#include <fstream>                                  // For file system management
-#include "./libraries/TinyGPSPlus_OS/TinyGPSPlus.h"                 // For GPS data parsing.
-#include <sys/ioctl.h>                              // Required for ioctl() function -> for get method  avilable char in uart recieved.
-#include <unistd.h>                                 // it provides access to many system-level functions and constants necessary for various tasks like process management, file I/O, and system interaction.  
-#include <chrono>                                   // For time management
+#include <fcntl.h>                                      // For file system management
+#include <termios.h>                                    // Use for UART communication
+#include <fstream>                                      // For file system management
+#include "./libraries/TinyGPSPlus_OS/TinyGPSPlus.h"     // For GPS data parsing.
+#include <sys/ioctl.h>                                  // Required for ioctl() function -> for get method  avilable char in uart recieved.
+#include <unistd.h>                                     // it provides access to many system-level functions and constants necessary for various tasks like process management, file I/O, and system interaction.  
+#include <chrono>                                       // For time management
 #include <thread>
 #include <mutex>
 
@@ -31,25 +32,34 @@
 #endif
 
 // ###############################################################
+// Public Structures:
 
-// GPS_DATA structure for store gps data
+/**
+ * @struct GPS_DATA
+ * @brief GPS_DATA structure for store gps data
+ *  */ 
 struct GPS_DATA
 {
-    volatile uint64_t ppsCount;         // Auxilliary variable for GPS pulse per second counter. 
-    float lat;                          // GPS Latitude. [deg] (-90, 90)
-    float lon;                          // GPS Longitude. [deg] (-360, 360)
-    float alt;                          // GPS Altitude from seal level. [m]
-    float course;                       // GPS motion course line relative to north.
-    float speed;                        // GPS speed magnitude.
-    double utcTime[6];                  // GPS UTC time: {Year, Month, Day, Hour, Minutes, Seconds}
-    float hdop = 100;                   // GPS Hdop value.
-    bool fixed;                         // GPS flag for 3d fixed mode.
-    volatile bool ppsFlag;              // Auxilliary variable for pulse per second trigger.
-    volatile uint64_t T_pps;            // Auxilliary variable for time at GPS PPS interrupt events. [us]
+    volatile uint64_t ppsCount = 0 ;        // Auxilliary variable for GPS pulse per second counter. 
+    float lat = 0 ;                         // GPS Latitude. [deg] (-90, 90)
+    float lon = 0;                          // GPS Longitude. [deg] (-360, 360)
+    float alt = 0;                          // GPS Altitude from seal level. [m]
+    float course = 0;                       // GPS motion course line relative to north.
+    float speed = 0;                        // GPS speed magnitude.
+    double utcTime[6];                      // GPS UTC time: {Year, Month, Day, Hour, Minutes, Seconds}
+    float hdop = 100;                       // GPS Hdop value.
+    bool fixed = false;                     // GPS flag for 3d fixed mode.
+    volatile bool ppsFlag = false;          // Auxilliary variable for pulse per second trigger.
+    volatile uint64_t T_pps = 0;            // Auxilliary variable for time at GPS PPS interrupt events. [us]
 };
+
+// #######################################################################################
+// Public classes:
 
 /**
  * @class GpsSerialComLinux
+ * @brief A class for UART or RS232 communication with GPS. 
+ * @note This class parses raw NMEA data from GPS.
  *  */  
 class GpsSerialComLinux
 {
@@ -61,10 +71,15 @@ class GpsSerialComLinux
         /// @brief Last error occurred for the object.
         static std::string errorMessage;       
 
-        // Init and setup without thread configuration. setup uart port.
+        /**
+         * @brief Init and setup without thread configuration. setup uart port.
+         * @return true is succeeded.
+         *  */ 
         static bool begin(void);
 
-        // Start thread for update GPS data automatically.
+        /**
+         * @brief Start thread for update GPS data automatically.
+         *  */ 
         static bool startThread(void);
 
         // Stop thread for update GPS data automatically.
@@ -85,6 +100,8 @@ class GpsSerialComLinux
         // @return true if successed.
         static bool setBaudrate(uint32_t rate);
 
+        static void setPortAddress(std::string address);
+
         // Update GPS data. parse data available on uart and estimate utc time.
         static void update(void);
 
@@ -100,6 +117,8 @@ class GpsSerialComLinux
         static double _utcTimeRef[6];              // UTC time at origin reference calculate in process. double [6] {Year, Month, Day, Hour, Minutes, Seconds}
 
         static int _serialPort;                    // Serial port number for open uart file. it is set automaticly in program.
+
+        static std::string _portAddress;
 
         static char *_gpsStream;                   // Pointer for GPS UART data stream.
 
@@ -136,9 +155,8 @@ class GpsSerialComLinux
         
         // Thread function handler for call GPS update() continously in seperated thread until call stopThread().
         static void _updateThread(void);
-
 };
 
 
-#endif  // RASP_GPS_UART_H
+
 
