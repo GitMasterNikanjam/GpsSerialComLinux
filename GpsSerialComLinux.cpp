@@ -333,6 +333,16 @@ void GpsSerialComLinux::_updateThread(void)
         std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Adjust the sleep duration as needed
     }
 }
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bool GpsSerialComLinux::_checkParameters(void)
+{
+    
+
+    return true;
+}
+
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void GpsSerialComLinux::detachPPS(void)
@@ -364,10 +374,10 @@ void GpsSerialComLinux::attachPPS(uint8_t pin)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void GpsSerialComLinux::setPPSpin(uint8_t pin)
-{
-    _ppsPin = pin;
-}
+// void GpsSerialComLinux::setPPSpin(uint8_t pin)
+// {
+//     _ppsPin = pin;
+// }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

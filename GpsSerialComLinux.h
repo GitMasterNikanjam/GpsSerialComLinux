@@ -24,11 +24,11 @@
 #include <mutex>
 
 #if(GPIO_TYPE == 1)
-    #include <pigpio.h>                                 // For GPIO configuration    
+    #include <pigpio.h>                                 // For GPIO access and configuration    
 #endif 
 
 #if(GPIO_TYPE == 0)
-    #include <gpiod.h>
+    #include <gpiod.h>                                  // For GPIO access and configuration 
 #endif
 
 // ###############################################################
@@ -69,7 +69,33 @@ class GpsSerialComLinux
         static GPS_DATA data;           
 
         /// @brief Last error occurred for the object.
-        static std::string errorMessage;       
+        static std::string errorMessage;   
+
+        /**
+         * @struct ParametersStructure
+         * @brief Parameters structure.
+         *  */    
+        struct ParametersStructure
+        {
+            /**
+             * @brief Serial port number for open uart file. it is set automaticly in program.
+             * @note An example value: "/dev/ttyS0"
+             */
+            std::string SERIAL_PORT_ADDRESS;
+
+            /**
+             * @brief GPIO pin number for GPS PPS pin interrupt.
+             * @note - A value of -1 means it is disabled.
+             * @note - Any change of it need call begin() to enable action of pps interrupts.
+             */
+            int8_t PPS_PIN;           
+
+            /**
+             * @brief Baud rate for serial communication.
+             * @note A value of either 9600 or 115200 is acceptable.
+             */
+            uint32_t BAUDRATE;
+        }parameters;
 
         /**
          * @brief Init and setup without thread configuration. setup uart port.
@@ -79,18 +105,24 @@ class GpsSerialComLinux
 
         /**
          * @brief Start thread for update GPS data automatically.
+         * @return true if succeeded.
          *  */ 
         static bool startThread(void);
 
-        // Stop thread for update GPS data automatically.
+        /**
+         * @brief Stop thread for update GPS data automatically.
+         * @return true if succeeded.
+         *  */ 
         static bool stopThread(void);
 
-        // Set GPIO pin and enable interrupt handle function for GPS PPS signals.
+        /**
+         * @brief Set GPIO pin and enable interrupt handle function for GPS PPS signals.
+         *  */ 
         static void attachPPS(uint8_t pin);
 
-        // Set GPIO pin for GPS PPS signals. 
-        // Hint: after it need call begin() to enable action of pps interrupts.  
-        static void setPPSpin(uint8_t pin);
+        // // Set GPIO pin for GPS PPS signals. 
+        // // Hint: after it need call begin() to enable action of pps interrupts.  
+        // static void setPPSpin(uint8_t pin);
 
         // Clean all setting for PPS signal. 
         static void detachPPS(void);
@@ -155,6 +187,8 @@ class GpsSerialComLinux
         
         // Thread function handler for call GPS update() continously in seperated thread until call stopThread().
         static void _updateThread(void);
+
+        static bool _checkParameters(void);
 };
 
 
