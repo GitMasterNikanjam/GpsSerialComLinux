@@ -1,5 +1,12 @@
-// For compile and build: g++ -o ex1 ex1.cpp ../GpsSerialComLinux.cpp ../../TinyGPSPlus_OS/TinyGPSPlus.cpp -lpigpio -lpthread -Wall -Wextra -std=c++17
-// For run: sudo ./ex1
+/*
+For compile and build for raspberry pi: 
+mkdir -p ./bin && g++ -o ./bin/ex1 ex1.cpp ../GpsSerialComLinux.cpp ../../TinyGPSPlus_OS/TinyGPSPlus.cpp -lpigpio -lpthread -Wall -Wextra -std=c++17
+
+For compile and build for General Linux OS: 
+mkdir -p ./bin && g++ -o ./bin/ex1 ex1.cpp ../GpsSerialComLinux.cpp ../../TinyGPSPlus_OS/TinyGPSPlus.cpp -lpthread -Wall -Wextra -std=c++17
+*/
+
+// For run: sudo ./bin/ex1
 
 // This example show use RaspGPS_UART without multithread strategy.
 
@@ -16,8 +23,8 @@ using namespace std;
 // #####################################################
 // Define parameters:
 
-#define GPS_PPS_PIN             18          // GPIO 18, DOWN, PCM_CLK, SD10, DPI_D14, SPI6_CE0_N, SPI1_CE0_N, PWM0_0
 #define BAUDRATE                9600        // UART baudrate for GPS communication
+#define SERIAL_PORT_ADDRESS     "/dev/ttyS0"
 
 // #######################################################
 // Define global variables and objects:
@@ -58,8 +65,9 @@ int main(void)
         gps.setPPSpin(GPS_PPS_PIN);
     #endif
 
-    gps.setPortAddress("/dev/ttyS0");
+    gps.setSerialPortAddress(SERIAL_PORT_ADDRESS);
     gps.setBaudrate(BAUDRATE);
+    gps.parameters.TIME_OFFSET = 900;
 
     if(gps.begin())
     {
@@ -88,10 +96,12 @@ int main(void)
 
 void loop(void)
 {
+    gps.startThread();
     while(true)
     {
         t1 = micros();
-        gps.update();
+        // gps.update();
+        
 
         double time[6];
         float pos[3];
@@ -125,8 +135,8 @@ void loop(void)
         std::cout << t2-t1 <<std::endl << std::endl;
 
       
-        // Wait for 1000 milliseconds
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        //Wait for 1000 milliseconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
  
     }
 }

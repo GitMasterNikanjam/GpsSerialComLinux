@@ -75,26 +75,31 @@ class GpsSerialComLinux
          * @struct ParametersStructure
          * @brief Parameters structure.
          *  */    
-        struct ParametersStructure
+        static struct ParametersStructure
         {
             /**
              * @brief Serial port number for open uart file. it is set automaticly in program.
              * @note An example value: "/dev/ttyS0"
              */
-            std::string SERIAL_PORT_ADDRESS;
+            static std::string SERIAL_PORT_ADDRESS;
 
             /**
              * @brief GPIO pin number for GPS PPS pin interrupt.
              * @note - A value of -1 means it is disabled.
              * @note - Any change of it need call begin() to enable action of pps interrupts.
              */
-            int8_t PPS_PIN;           
+            static int8_t PPS_PIN;           
 
             /**
              * @brief Baud rate for serial communication.
              * @note A value of either 9600 or 115200 is acceptable.
              */
-            uint32_t BAUDRATE;
+            static uint32_t BAUDRATE;
+
+            /**
+             * @brief GPS time data offset. [us]
+             */
+            static uint32_t TIME_OFFSET;
         }parameters;
 
         /**
@@ -127,69 +132,109 @@ class GpsSerialComLinux
         // Clean all setting for PPS signal. 
         static void detachPPS(void);
 
-        // Set UART baudrate. default value is 115200.
-        // @param rate: can be just 9600 or 115200.
-        // @return true if successed.
+        /**
+         * @brief Set UART baudrate. default value is 9600.
+         * @param rate: can be just 9600 or 115200.
+         * @return true if successed.
+         *  */ 
         static bool setBaudrate(uint32_t rate);
 
-        static void setPortAddress(std::string address);
+        static void setSerialPortAddress(std::string address);
 
-        // Update GPS data. parse data available on uart and estimate utc time.
-        static void update(void);
+        /**
+         * @brief Update GPS data. parse data available on uart and estimate utc time.
+         * @param nonBlockEnable: Is flag for setup serial communication at blocking mode or non blocking mode.
+         * @note Default value of nonBlockEnable is false.
+         *  */ 
+        static void update(bool nonBlockEnable = false);
 
-        // Clean and close all resources.
+        /// @brief Clean and close all resources.
         static void clean(void);
 
     private:
 
-        // The TinyGPSPlus object. This object get GPS stream data and parse it to states variables.
-        // Hint: GPS data stream should read from UART port by another way before use TinyGPSPlus parser.
+        static uint64_t _T_SerialTimeUpdate;
+
+        static std::tm _timeInfo;
+
+        /**
+         * @brief The TinyGPSPlus object. This object get GPS stream data and parse it to states variables.
+         * @note GPS data stream should read from UART port by another way before use TinyGPSPlus parser.
+         *  */ 
         static TinyGPSPlus _GPS;
 
-        static double _utcTimeRef[6];              // UTC time at origin reference calculate in process. double [6] {Year, Month, Day, Hour, Minutes, Seconds}
+        /**
+         * @brief UTC time at origin reference calculate in process. double [6] {Year, Month, Day, Hour, Minutes, Seconds}
+         *  */ 
+        static double _utcTimeRef[6];              
 
-        static int _serialPort;                    // Serial port number for open uart file. it is set automaticly in program.
+        /**
+         * @brief Serial port number for open uart file. it is set automaticly in program.
+         *  */ 
+        static int _serialPort;                    
 
-        static std::string _portAddress;
-
-        static char *_gpsStream;                   // Pointer for GPS UART data stream.
-
-        static int8_t _ppsPin;               // GPIO pin number for GPS PPS pin interrupt.
-
-        static uint32_t _baudRate;
+        /**
+         * @brief Pointer for GPS UART data stream.
+         *  */ 
+        static char *_gpsStream;                   
 
         static std::thread _thread;
+
         static bool stopThreadFlag;
 
-        // Time origin point. Reference time point for micros() calculations.
+        /**
+         * @brief Time origin point. Reference time point for micros() calculations.
+         *  */ 
         static std::chrono::time_point<std::chrono::system_clock> _T_origin;
 
-        // Return time from origin time point (T_origin: created at begin() method). [us]
+        /**
+         * @brief Return time from origin time point (T_origin: created at begin() method). [us]
+         *  */ 
         static uint64_t _micros(void);
 
-        // Setup and init UART port.
-        static bool _uartSetup(void);
+        /**
+         * @brief Setup and init UART port.
+         * @param nonBlockEnable: Is flag for setup serial communication at blocking mode or non blocking mode.
+         * @note Default value of nonBlockEnable is false.
+         *  */ 
+        static bool _uartSetup(bool nonBlockEnable = false);
 
-        // Set utc reference when gps serial data recieved and valid.
+        /**
+         * @brief Set utc reference when gps serial data recieved and valid.
+         *  */ 
         static void _setUtcReference(void);
 
-        // Estimate high precicion utc time when call this function. calculate utc seconds with fractional section. 
+        /**
+         * @brief Estimate high precicion utc time when call this function. calculate utc seconds with fractional section. 
+         *  */ 
         static void _calcUtcTime(void);
 
-        // GPS functions for get GPS stream and convert it to gps data states.
-        static void _parse(void);
+        /**
+         * @brief GPS functions for get GPS stream and convert it to gps data states.
+         * @param nonBlockEnable: Is flag for setup serial communication at blocking mode or non blocking mode.
+         * @note Default value of nonBlockEnable is false
+         *  */ 
+        static void _parse(bool nonBlockEnable = false);
 
-        /*
-            GPS PPS pulses external interrupts handle function.
-            When GPS pulse per seconds trigged, this function execute.
-        */ 
+        /**
+         * @brief GPS PPS pulses external interrupts handle function.
+         * When GPS pulse per seconds trigged, this function execute.
+         */
         static void _InterruptHandler(int /*gpio*/, int /*level*/, uint32_t /*tick*/); 
         
-        // Thread function handler for call GPS update() continously in seperated thread until call stopThread().
+        /**
+         * @brief Thread function handler for call GPS update() continously in seperated thread until call stopThread().
+         *  */ 
         static void _updateThread(void);
 
+        /**
+         * @brief Check parameters validation.
+         * @return true if succeeded.
+         */
         static bool _checkParameters(void);
 };
+
+
 
 
 

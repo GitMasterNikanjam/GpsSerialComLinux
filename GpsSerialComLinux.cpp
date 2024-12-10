@@ -8,20 +8,31 @@ std::chrono::time_point<std::chrono::system_clock> GpsSerialComLinux::_T_origin;
 std::string GpsSerialComLinux::errorMessage;
 TinyGPSPlus GpsSerialComLinux::_GPS;
 double GpsSerialComLinux::_utcTimeRef[6];
-int GpsSerialComLinux::_serialPort = -1; // Default initialization
+int GpsSerialComLinux::_serialPort = -1; 
 char* GpsSerialComLinux::_gpsStream = nullptr;
-int8_t GpsSerialComLinux::_ppsPin = -1;
-uint32_t GpsSerialComLinux::_baudRate = 115200;
 std::thread GpsSerialComLinux::_thread;
 bool GpsSerialComLinux::stopThreadFlag = false;
-std::string GpsSerialComLinux::_portAddress = "/dev/ttyS0";
+std::string GpsSerialComLinux::ParametersStructure::SERIAL_PORT_ADDRESS = "/dev/ttyS0"; 
+int8_t GpsSerialComLinux::ParametersStructure::PPS_PIN = -1;                           
+uint32_t GpsSerialComLinux::ParametersStructure::BAUDRATE = 9600;  
+uint64_t GpsSerialComLinux::_T_SerialTimeUpdate = 0; 
+std::tm GpsSerialComLinux::_timeInfo = {};
+uint32_t GpsSerialComLinux::ParametersStructure::TIME_OFFSET = 0;
 
 // ########################################################################
 
-bool GpsSerialComLinux::_uartSetup(void)
+bool GpsSerialComLinux::_uartSetup(bool nonBlockEnable)
 {
-    // Open UART device file in read-write mode, prevent it from becoming the controlling terminal, and set non-blocking mode
-    _serialPort = open(_portAddress.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+    if(nonBlockEnable == true)
+    {
+        // Open UART device file in read-write mode, prevent it from becoming the controlling terminal, and set non-blocking mode
+        _serialPort = open(parameters.SERIAL_PORT_ADDRESS.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+    }
+    else
+    {
+        // Open the serial port (without O_NDELAY)
+        _serialPort = open(parameters.SERIAL_PORT_ADDRESS.c_str(), O_RDWR | O_NOCTTY);
+    }
 
     if (_serialPort == -1) 
     {
@@ -40,7 +51,7 @@ bool GpsSerialComLinux::_uartSetup(void)
     }
 
     uint baudRate;
-    switch (_baudRate)
+    switch (parameters.BAUDRATE)
     {
     case 9600:
         baudRate = B9600;
@@ -49,7 +60,7 @@ bool GpsSerialComLinux::_uartSetup(void)
         baudRate = B115200;
         break;
     default:
-        baudRate = B115200;
+        baudRate = B9600;
         break;
     }
 
@@ -69,12 +80,18 @@ bool GpsSerialComLinux::_uartSetup(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void GpsSerialComLinux::_parse(void)
+void GpsSerialComLinux::_parse(bool nonBlockEnable)
 {
-    // Open serialport for uart in non blocking mode.
-    // _serialPort = open(_portAddress.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
-    _serialPort = open(_portAddress.c_str(), O_RDWR | O_NOCTTY);
-
+    if(nonBlockEnable == true)
+    {
+        // Open serialport for uart in non blocking mode.
+        _serialPort = open(parameters.SERIAL_PORT_ADDRESS.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+    }
+    else
+    {
+        _serialPort = open(parameters.SERIAL_PORT_ADDRESS.c_str(), O_RDWR | O_NOCTTY);
+    }
+    
     if (_serialPort < 0) 
     {
         errorMessage = "Error opening serial port: ";
@@ -91,8 +108,6 @@ void GpsSerialComLinux::_parse(void)
         close(_serialPort);
         return;
     }
-
-    std::cout << "Bytes available for read: " << uart_available_chars << std::endl;
 
     if (uart_available_chars > 0) 
     {
@@ -133,7 +148,7 @@ void GpsSerialComLinux::_parse(void)
 
                     if(_GPS.time.isUpdated())
                     {
-                        if(_ppsPin >= 0)
+                        if(parameters.PPS_PIN >= 0)
                         {
                             // Update utc time reference.
                             if((data.ppsFlag == true) && (_GPS.time.isValid()))
@@ -144,8 +159,15 @@ void GpsSerialComLinux::_parse(void)
                         }
                         else
                         {
-                            data.T_pps = _micros();
-                            _setUtcReference();
+                            // Update utc time reference.
+                            if(_GPS.time.isValid())
+                            {
+                                if(_utcTimeRef[5] != _GPS.time.second())
+                                {
+                                    _T_SerialTimeUpdate = _micros() - parameters.TIME_OFFSET;
+                                }
+                                _setUtcReference();
+                            }   
                         }
                     }
 
@@ -189,45 +211,52 @@ void GpsSerialComLinux::_setUtcReference(void)
 
 void GpsSerialComLinux::_calcUtcTime(void)
 {
-    uint64_t T = _micros();            // current time. [us]
-    uint64_t dT = T - data.T_pps;      // Deference between current time and last time in PPS interrupt. [us]
+    uint64_t T = _micros();                 // current time. [us];
+    uint64_t dT;
 
-    // Check if pps pulses duration is longer than 1.2 seconds, then set ppsFlag to false.
-    if((dT >= 1200000))
+    if(parameters.PPS_PIN >= 0)
     {
-        data.ppsFlag = false;
+        dT = T - data.T_pps;                // Deference between current time and last time in PPS interrupt. [us]
+        // Check if pps pulses duration is longer than 1.2 seconds, then set ppsFlag to false.
+        if((dT >= 1200000))
+        {
+            data.ppsFlag = false;
+        }
+    }
+    else
+    {
+        dT = T - _T_SerialTimeUpdate;       // Deference between current time and last time in PPS interrupt. [us]
     }
         
     double dt[2];                                   // -> dt = {dt[0] = fractional section, dt[1] = integer section}
     dt[0] = int(dT/1000000.0) + data.ppsCount;      // Get integer section of time.
     dt[1] = double(dT%1000000)/1000000.0;           // Get fractional section of time.
 
-    std::tm timeInfo;
-    timeInfo.tm_year = _utcTimeRef[0] - 1900;       // years since 1900
-    timeInfo.tm_mon = _utcTimeRef[1] - 1;           // months since January (0-based)
-    timeInfo.tm_mday = _utcTimeRef[2];              // day of the month (1-31)
-    timeInfo.tm_hour = _utcTimeRef[3];              // hours since midnight (0-23)
-    timeInfo.tm_min = _utcTimeRef[4];               // minutes after the hour (0-59)
-    timeInfo.tm_sec = _utcTimeRef[5];               // seconds
-
+    // std::tm timeInfo;
+    _timeInfo.tm_year = _utcTimeRef[0] - 1900;       // years since 1900
+    _timeInfo.tm_mon = _utcTimeRef[1] - 1;           // months since January (0-based)
+    _timeInfo.tm_mday = _utcTimeRef[2];              // day of the month (1-31)
+    _timeInfo.tm_hour = _utcTimeRef[3];              // hours since midnight (0-23)
+    _timeInfo.tm_min = _utcTimeRef[4];               // minutes after the hour (0-59)
+    _timeInfo.tm_sec = _utcTimeRef[5];               // seconds
+    
     // Convert std::tm to std::time_t
-    std::time_t time = std::mktime(&timeInfo); 
+    std::time_t time = std::mktime(&_timeInfo); 
     
     // Add integer section to UTC time seconds.
     time += dt[0];
 
     // Convert std::time_t back to std::tm
     // Hint it is used localtime not gmtime, beacuse time variable itself is in UTC time.
-    timeInfo = *(std::localtime(&time));
+    _timeInfo = *(std::localtime(&time));
 
     // Add fractional section of time.
-    data.utcTime[0] = timeInfo.tm_year + 1900;
-    data.utcTime[1] = timeInfo.tm_mon + 1;
-    data.utcTime[2] = timeInfo.tm_mday;
-    data.utcTime[3] = timeInfo.tm_hour;
-    data.utcTime[4] = timeInfo.tm_min;
-    data.utcTime[5] = timeInfo.tm_sec + dt[1];
-     
+    data.utcTime[0] = _timeInfo.tm_year + 1900;
+    data.utcTime[1] = _timeInfo.tm_mon + 1;
+    data.utcTime[2] = _timeInfo.tm_mday;
+    data.utcTime[3] = _timeInfo.tm_hour;
+    data.utcTime[4] = _timeInfo.tm_min;
+    data.utcTime[5] = _timeInfo.tm_sec + dt[1];
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -249,6 +278,11 @@ void GpsSerialComLinux::_InterruptHandler(int /*gpio*/, int /*level*/, uint32_t 
 
 bool GpsSerialComLinux::begin(void)
 {
+    if(_checkParameters() == false)
+    {
+        return false;
+    }
+
     // Save time point for time origin.
     _T_origin = std::chrono::high_resolution_clock::now();
     
@@ -257,9 +291,9 @@ bool GpsSerialComLinux::begin(void)
         return false;
     }
 
-    if(_ppsPin >= 0)
+    if(parameters.PPS_PIN >= 0)
     {
-        attachPPS(_ppsPin);
+        attachPPS(parameters.PPS_PIN);
     }
 
     return true;
@@ -317,9 +351,9 @@ void GpsSerialComLinux::clean(void)
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void GpsSerialComLinux::update(void)
+void GpsSerialComLinux::update(bool nonBlockEnable)
 {
-    _parse();
+    _parse(nonBlockEnable);
     _calcUtcTime();
 }
 
@@ -338,7 +372,14 @@ void GpsSerialComLinux::_updateThread(void)
 
 bool GpsSerialComLinux::_checkParameters(void)
 {
-    
+    bool state = ((parameters.BAUDRATE == 9600) || (parameters.BAUDRATE == 115200)) &&
+                 (parameters.PPS_PIN >= -1) && (parameters.SERIAL_PORT_ADDRESS != "");
+
+    if(state == false)
+    {
+        errorMessage = "Error GpsSerialComLinux: One or some parameters are not correct.";
+        return false;
+    }
 
     return true;
 }
@@ -347,7 +388,7 @@ bool GpsSerialComLinux::_checkParameters(void)
 
 void GpsSerialComLinux::detachPPS(void)
 {
-    if(_ppsPin >= 0)
+    if(parameters.PPS_PIN >= 0)
     {
         #if(GPIO_TYPE == 1)
             gpioSetMode(_ppsPin, PI_INPUT);
@@ -356,15 +397,18 @@ void GpsSerialComLinux::detachPPS(void)
         #endif
     }
 
-    _ppsPin = -1;
+    parameters.PPS_PIN = -1;
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void GpsSerialComLinux::attachPPS(uint8_t pin)
 {
-    _ppsPin = pin;
-
+    if(parameters.PPS_PIN >= 0)
+    {
+        parameters.PPS_PIN = pin;
+    }
+    
     #if(GPIO_TYPE == 1)
         gpioSetMode(_ppsPin, PI_INPUT);
         gpioSetPullUpDown(_ppsPin, PI_PUD_DOWN);
@@ -385,7 +429,7 @@ bool GpsSerialComLinux::setBaudrate(uint32_t rate)
 {
     if( (rate == 9600) || (rate == 115200) )
     {
-        _baudRate = rate;
+        parameters.BAUDRATE = rate;
     }
     else
     {
@@ -396,7 +440,7 @@ bool GpsSerialComLinux::setBaudrate(uint32_t rate)
     return true;
 }
 
-void GpsSerialComLinux::setPortAddress(std::string address)
+void GpsSerialComLinux::setSerialPortAddress(std::string address)
 {
-    _portAddress = address;
+    parameters.SERIAL_PORT_ADDRESS = address;
 }
