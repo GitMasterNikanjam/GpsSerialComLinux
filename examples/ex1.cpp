@@ -23,7 +23,7 @@ using namespace std;
 // #####################################################
 // Define parameters:
 
-#define BAUDRATE                9600        // UART baudrate for GPS communication
+#define BAUDRATE                115200        // UART baudrate for GPS communication
 #define SERIAL_PORT_ADDRESS     "/dev/ttyS0"
 
 // #######################################################
@@ -67,7 +67,8 @@ int main(void)
 
     gps.setSerialPortAddress(SERIAL_PORT_ADDRESS);
     gps.setBaudrate(BAUDRATE);
-    gps.parameters.TIME_OFFSET = 900;
+    gps.parameters.TIME_OFFSET = 800;
+    gps.parameters.PPS_PIN = -1;
 
     if(gps.begin())
     {
@@ -96,13 +97,12 @@ int main(void)
 
 void loop(void)
 {
-    gps.startThread();
+    // gps.startThread();
     while(true)
     {
         t1 = micros();
-        // gps.update();
+        gps.update();
         
-
         double time[6];
         float pos[3];
 
@@ -136,7 +136,7 @@ void loop(void)
 
       
         //Wait for 1000 milliseconds
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
  
     }
 }

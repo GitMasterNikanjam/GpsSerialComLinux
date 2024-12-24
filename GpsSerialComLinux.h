@@ -153,6 +153,8 @@ class GpsSerialComLinux
 
     private:
 
+        static bool _isPortOpenedFlag;
+
         static uint64_t _T_SerialTimeUpdate;
 
         static std::tm _timeInfo;

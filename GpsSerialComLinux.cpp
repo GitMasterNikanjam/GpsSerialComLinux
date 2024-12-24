@@ -18,6 +18,7 @@ uint32_t GpsSerialComLinux::ParametersStructure::BAUDRATE = 9600;
 uint64_t GpsSerialComLinux::_T_SerialTimeUpdate = 0; 
 std::tm GpsSerialComLinux::_timeInfo = {};
 uint32_t GpsSerialComLinux::ParametersStructure::TIME_OFFSET = 0;
+bool GpsSerialComLinux::_isPortOpenedFlag = true;
 
 // ########################################################################
 
@@ -37,7 +38,13 @@ bool GpsSerialComLinux::_uartSetup(bool nonBlockEnable)
     if (_serialPort == -1) 
     {
         errorMessage = "Error opening UART device file.";
+        close(_serialPort);
+        _isPortOpenedFlag = false;
         return false;
+    }
+    else
+    {
+        _isPortOpenedFlag = true;
     }
 
     // Configure UART settings
@@ -47,6 +54,7 @@ bool GpsSerialComLinux::_uartSetup(bool nonBlockEnable)
     {
         errorMessage = "Error getting UART attributes: ";
         close(_serialPort);
+        _isPortOpenedFlag = false;
         return false;
     }
 
@@ -75,6 +83,11 @@ bool GpsSerialComLinux::_uartSetup(bool nonBlockEnable)
     // Clear the input buffer
     tcflush(_serialPort, TCIFLUSH);
 
+    if(nonBlockEnable == true)
+    {
+        close(_serialPort);
+        _isPortOpenedFlag = false;
+    }
     return true;
 }
 
@@ -89,33 +102,44 @@ void GpsSerialComLinux::_parse(bool nonBlockEnable)
     }
     else
     {
-        _serialPort = open(parameters.SERIAL_PORT_ADDRESS.c_str(), O_RDWR | O_NOCTTY);
+        if(_isPortOpenedFlag == false)
+        {
+            _serialPort = open(parameters.SERIAL_PORT_ADDRESS.c_str(), O_RDWR | O_NOCTTY);
+        }  
     }
     
     if (_serialPort < 0) 
     {
         errorMessage = "Error opening serial port: ";
+        _isPortOpenedFlag = false;
+        close(_serialPort);
         return;
+    }
+    else
+    {
+        _isPortOpenedFlag = true;
     }
 
     // Check number of characters available in UART receive buffer
     int uart_available_chars;
 
-    // ioctl(_serialPort, FIONREAD, &uart_available_chars);
-    
-    if (ioctl(_serialPort, FIONREAD, &uart_available_chars) < 0) {
+    if (ioctl(_serialPort, FIONREAD, &uart_available_chars) < 0) 
+    {
         errorMessage = "Error with ioctl to check available bytes: ";
         close(_serialPort);
+        _isPortOpenedFlag = false;
         return;
     }
 
     if (uart_available_chars > 0) 
     {
         char uart_read_buffer[uart_available_chars];
-        int uart_bytes_read = read(_serialPort, &uart_read_buffer, sizeof(uart_read_buffer));
+        int uart_bytes_read = read(_serialPort, &uart_read_buffer, sizeof(uart_read_buffer) - 1);
         if (uart_bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) 
         {
             // Manage program for no data recieved from uart port.
+            close(_serialPort);
+            _isPortOpenedFlag = false;
         } 
         else if (uart_bytes_read > 0) 
         {
@@ -145,7 +169,7 @@ void GpsSerialComLinux::_parse(bool nonBlockEnable)
                     {
                         data.course = _GPS.course.deg();
                     }
-
+                    
                     if(_GPS.time.isUpdated())
                     {
                         if(parameters.PPS_PIN >= 0)
@@ -190,8 +214,11 @@ void GpsSerialComLinux::_parse(bool nonBlockEnable)
         }
     }
 
-    // Close UART
-    close(_serialPort);
+    if(nonBlockEnable == true)
+    {
+        // Close UART
+        close(_serialPort);
+    }
 }
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -364,7 +391,7 @@ void GpsSerialComLinux::_updateThread(void)
     while(!stopThreadFlag)
     {
         update();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Adjust the sleep duration as needed
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // Adjust the sleep duration as needed
     }
 }
 
